@@ -1,12 +1,12 @@
 #-------------------------------------------------------------------------------
-# title: Weighted leaste squares regression analysis
+# title: Weighted least squares regression analysis
 # author: E Lunsford  
-# date: 2025-08-20
+# date: 2025-08-27
 #  
 # This code is conducted a weighted least squares regression analysis
 #
 #
-# Last Run: 08/20/2025 and code was in working order 
+# Last Run: 08/27/2025 and code was in working order 
 # using R 4.5.1 and RStudio 2025.05.1+513 
 #
 #-------------------------------------------------------------------------------
@@ -31,7 +31,6 @@ library(tidycensus)
 
 #################################################################################
 # Load data and filter for analysis.
-#
 # For this analysis, we are focused on all cbg with at least 1 resident
 #################################################################################
 
@@ -99,11 +98,8 @@ qqnorm(res_slr)
 qqline(res_slr, col = "red")
 
 #################################################################################
-# Test for Spatial autocorrelation
+# Test for Spatial autocorrelation using spdep package
 #################################################################################
-
-library(sf)
-library(spdep)
 
 # variable of interest
 var_to_test <- "nlcd_mean"
@@ -127,21 +123,18 @@ moran.plot(sf_clean[[var_to_test]], weights_list,
            ylab = "Spatial lag",
            main = "Moran Scatterplot")
 
-# Positive slope --> positive spatial correlation, cbg with higher tree canopy values tend to be 
-# surrounded by other high-canopy cbg, and low-canopy areas tend to be near other low-canopy areas.
+# Positive slope --> positive spatial correlation, cbg with higher TCC values tend to be 
+# surrounded by other high TCC cbg, and low TCC areas tend to be near other low TCC areas.
 
 # Quadrants:
 # Upper right (High–High) and lower left (Low–Low) have a large share of points, clustering of similar values dominates the pattern.
 # Upper left (Low–High) and lower right (High–Low) quadrants have fewer points — are spatial outliers where a cbg differs from its surroundings.
-# Spread: points fairly dispersed but still align with positive slope, suggesting moderate, not perfect, spatial autocorrelation.
+# Spread: points fairly dispersed but still align with positive slope, suggesting moderate spatial autocorrelation.
 
 
 #################################################################################
 # Model Set 1: SLR Loop of all combinations of + and *
-# 
 # For this analysis, we are focused on all cbg with at least 1 resident
-# Using NLCD mean of each CBG
-#
 #################################################################################
 
 # Define dependent variable
@@ -216,9 +209,7 @@ knitr::kable(broom::tidy(model_results_slr[[4]], conf.int = TRUE))
 knitr::kable(broom::tidy(model_results_slr[[5]], conf.int = TRUE))
 
 ################################################################################
-# 
 # Select best models based on AIC using AICcmodavg package
-#
 ################################################################################
 
 # Get AIC table
@@ -328,7 +319,6 @@ for (i in seq_along(all_combinations)) {
 
 # Get names of all models
 names(model_results_wls)
-
 
 # View specific model results
 knitr::kable(broom::tidy(model_results_wls[[1]], conf.int = TRUE))
