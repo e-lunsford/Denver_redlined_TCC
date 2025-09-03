@@ -1,18 +1,20 @@
 #-------------------------------------------------------------------------------
 # title: Obtain ACS, tree canopy, and redlining data
 # author: E Lunsford  
-# date: 2025-08-15
+# date: 2025-08-29
 #  
 # This code is to obtain ACS 5 year estimates for 2017-2021 data from ACS, 
 # NLCD 2021 USFS Tree Canopy Cover (CONUS) from mrlc, and redlining data from
 # mapping inequality.
 #
 #
-# Last Run: 08/15/2025 and code was in working order 
+# Last Run: 08/29/2025 and code was in working order 
 # using R 4.5.1 and RStudio 2025.05.1+513 
 #
 #-------------------------------------------------------------------------------
 
+# Last update: 
+# Fixes the NHB upper bound bug, fixes CI section
 
 #################################################################################
 # Load Libraries.
@@ -125,40 +127,52 @@ pop_table <- den_cbg_acs5_2021_wide %>%
 
 #################################################################################
 # Calculate CIs for population data
-##################################################################################
+#
+# Avoids NaN for percent estimates by setting them to 0 when total_pop == 0.
+# Uses a helper function to calculate CIs and set negative lower bounds to 0.
+#################################################################################
+
+# Helper function to calculate CIs
+calc_ci <- function(est, se, z = 1.96) {
+  lower = pmax(est - (z * se), 0) # no negative lower bound
+  upper = est + (z * se)
+  list(lower, upper = upper)
+}
+
 
 pop_table2 <- pop_table %>%
   mutate(
+    
+    # Avoid NaN in % when total pop == 0
+    nhw_per = ifelse(total_pop == 0, 0, (nhw_pop / total_pop) * 100),
+    nhb_per = ifelse(total_pop == 0, 0, (nhb_pop / total_pop) * 100),
+    hisp_per = ifelse(total_pop == 0, 0, (hisp_pop / total_pop) * 100),
+    pov_per = ifelse(total_pop == 0, 0, (pov_pop / total_pop) * 100),
+    
     # Total pop
-    total_pop_lower = total_pop - (1.96 * total_pop_se),
-    total_pop_upper = total_pop + (1.96 * total_pop_se),
+    total_pop_lower = calc_ci(total_pop, total_pop_se)$lower,
+    total_pop_upper = calc_ci(total_pop, total_pop_se)$upper,
     
-    # NHW
-    nhw_pop_lower = nhw_pop - (1.96 * nhw_pop_se),
-    nhw_pop_upper = nhw_pop + (1.96 * nhw_pop_se),
+    # NHW CI
+    nhw_pop_lower = calc_ci(nhw_pop, nhw_pop_se)$lower,
+    nhw_pop_upper = calc_ci(nhw_pop, nhw_pop_se)$upper,
     
-    # NHB
-    nhb_pop_lower = nhb_pop - (1.96 * nhb_pop_se),
-    nhw_pop_upper = nhb_pop + (1.96 * nhb_pop_se),
+    # NHB CI
+    nhb_pop_lower = calc_ci(nhb_pop, nhb_pop_se)$lower,
+    nhb_pop_upper = calc_ci(nhb_pop, nhb_pop_se)$upper,
     
-    # Hisp
-    hisp_pop_lower = hisp_pop - (1.96 * hisp_pop_se),
-    hisp_pop_upper = hisp_pop + (1.96 * hisp_pop_se),
+    # Hispanic CI
+    hisp_pop_lower = calc_ci(hisp_pop, hisp_pop_se)$lower,
+    hisp_pop_upper = calc_ci(hisp_pop, hisp_pop_se)$upper,
     
-    # Pov
-    pov_pop_lower = pov_pop - (1.96 * pov_pop_se),
-    pov_pop_upper = pov_pop + (1.96 * pov_pop_se)
+    # Poverty CI
+    pov_pop_lower = calc_ci(pov_pop, pov_pop_se)$lower,
+    pov_pop_upper = calc_ci(pov_pop, pov_pop_se)$upper
   )
 
-pop_table3 <- pop_table2 %>%
-  mutate(across(
-    .cols = ends_with("_lower"),
-    .fns = ~ ifelse(.x < 0, 0, .x)
-  ))
-
 # Save data for future use
-save(file = "Data/population_tables.RData",
-     x = pop_table3)
+save(file = "Data/pop_table2.RData",
+     x = pop_table2)
 
 #################################################################################
 #
@@ -241,6 +255,7 @@ denver_extent <- terra::ext(den_5070_sv)
 
 # Crop tree data to Denver
 cropped_raster <- crop(nlcd_tree_2021, denver_extent)
+test_raster <- crop(test_nlcd,denver_extent)
 
 
 # Extract nlcd raster values to CBG using exactextractr package
@@ -270,6 +285,8 @@ save(file = "Data/den_5070_tree.RData",
 den_nad83_tree <- st_transform(x = den_5070_tree,
                                crs = 4269)
 
+summary(den_nad83_tree)
+
 # Save data
 save(file = "Data/den_nad83_tree.RData",
      x = den_nad83_tree)
@@ -281,7 +298,6 @@ den_wgs84_tree <- den_nad83_tree %>%
 # Save data
 save(file = "Data/den_wgs84_tree.RData",
      x = den_wgs84_tree)
-
 
 #################################################################################
 #
@@ -313,7 +329,7 @@ save(file = "Data/redline_nad83.RData",
 
 # Map original HOLC neighborhoods with ggplot and add Denver boundaries
 ggplot() +
-  geom_sf(data = pop_table3,
+  geom_sf(data = pop_table2,
           fill = NA,
           colour = "black") +
   geom_sf(data = redline_nad83,
@@ -329,8 +345,5 @@ ggplot() +
 # Get summary of redlining data
 redline_nad83 %>%
   count(holc_grade)
-
-
-
 
 

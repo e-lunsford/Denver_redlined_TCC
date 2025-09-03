@@ -1,22 +1,24 @@
 #-------------------------------------------------------------------------------
 # title: Descriptive exploration
 # author: E Lunsford  
-# date: 2025-08-18
+# date: 2025-09-03
 #  
 # This code is to explore that merged final dataset
 #
 #
-# Last Run: 08/18/2025 and code was in working order 
+# Last Run: 09/03/2025 and code was in working order 
 # using R 4.5.1 and RStudio 2025.05.1+513 
 #
 #-------------------------------------------------------------------------------
 
+# Last update: updated code to match new merged data from 03
 
 #################################################################################
 # Load Libraries.
 #################################################################################
 library(broom)
 library(ggplot2)
+library(colorspace)
 library(ggspatial)
 library(gstat)
 library(ggthemes)
@@ -25,14 +27,13 @@ library(raster)
 library(sf)
 library(stringr)
 library(terra)
-library(tidycensus)
 library(tidyverse)
 
 #################################################################################
 # Load data
 #################################################################################
 
-load(file = "Data/acs_tcc_holc_final.RData")
+load(file = "Data/combined_sf.RData")
 
 #################################################################################
 # Finalize data
@@ -46,12 +47,12 @@ load(file = "Data/acs_tcc_holc_final.RData")
 
 dia_id <- c("080319800011")
 
-df_op1 <- acs_tcc_holc_final %>%
+df_op1 <- combined_sf %>%
   filter(!GEOID %in% dia_id)
 
 # Option 2) remove DIA and cbg with 0 population
 
-df_op2 <- acs_tcc_holc_final %>%
+df_op2 <- combined_sf %>%
   filter(!GEOID %in% dia_id,
          total_pop > 0)
 
@@ -59,11 +60,10 @@ df_op2 <- acs_tcc_holc_final %>%
 
 holc_grade_id <- c("NA")
 
-df_op3 <- acs_tcc_holc_final %>%
+df_op3 <- combined_sf %>%
   filter(!GEOID %in% dia_id,
          total_pop > 0,
-         !worst_holc %in% holc_grade_id)
-
+         !worst_holc == "no_holc")
 
 #################################################################################
 # Set map theme.
